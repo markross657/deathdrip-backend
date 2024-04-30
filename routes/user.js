@@ -1,7 +1,7 @@
 const express = require("express");
 const router = express.Router();
 const { Pool } = require('pg');
-const utils = require('../Utility');
+const utils = require('../utility');
 const { v4: uuidv4 } = require('uuid');
 const pool = require('../dynamoDbConfig');
 
