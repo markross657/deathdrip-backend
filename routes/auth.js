@@ -3,7 +3,7 @@ const express = require("express");
 const router = express.Router();
 const jwt = require('jsonwebtoken');
 const { Pool } = require('pg');
-const Utils = require('./../Utility');
+const Utils = require('./../utility');
 const pool = require('../dynamoDbConfig');
 
 // /auth/signin
