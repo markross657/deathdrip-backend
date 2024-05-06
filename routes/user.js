@@ -2,14 +2,59 @@ const express = require("express");
 const router = express.Router();
 const utils = require('../utility');
 const { v4: uuidv4 } = require('uuid');
-const pool = require('../dynamoDbConfig');
+const { Client } = require('pg');
+
+var conString = `postgres://${process.env.PGUSER}:${process.env.PGPASSWORD}@${process.env.PGHOST}:${process.env.PGPORT}/${process.env.PGDATABASE}`;
+console.log(conString);
+
+// Get all Users
+router.get("/", async (req, res) => {
+  const client = new Client(conString);
+  try {
+    await client.connect();
+    client.connect()
+    .then(() => {
+        console.log("Database Connected");
+    })
+    .catch((err) => {
+        console.log("Error connecting to database.", err);
+    });
+
+    const { rows } = await client.query('SELECT * FROM users');
+    res.json(rows);
+
+    await client.end();
+  } 
+  catch (err) {
+    console.log("Error getting users", err);
+    res.status(500).json({
+      message: "problem getting users",
+      error: err,
+    });
+  }
+});
+
+module.exports = router;
+
+
 
 // Get all Users
 router.get("/", async (req, res) => {
   try {
-    const { rows } = await pool.query('SELECT * FROM users');
+    var client = new pg.client(conString);
+    client.connect()
+    .then(() => {
+        console.log("Database Connected");
+    })
+    .catch((err) => {
+        console.log("Error connecting to database.", err);
+    });
+
+    const { rows } = await client.query('SELECT * FROM users');
     res.json(rows);
-  } catch (err) {
+    
+  } 
+  catch (err) {
     console.log("Error getting users", err);
     res.status(500).json({
       message: "problem getting users",

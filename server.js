@@ -5,14 +5,6 @@ const bodyParser = require("body-parser");
 const port = process.env.PORT || 3520;
 const pool = require('./dynamoDbConfig');
 
-pool.connect()
-    .then(() => {
-        console.log("Database Connected");
-    })
-    .catch((err) => {
-        console.log("Error connecting to database.", err);
-    });
-
 // Express app setup
 const app = express();
 app.use('*', cors());
