@@ -2,7 +2,6 @@ require("dotenv").config();
 const express = require("express");
 const router = express.Router();
 const jwt = require('jsonwebtoken');
-const { Pool } = require('pg');
 const Utils = require('./../utility');
 const pool = require('../dynamoDbConfig');
 
@@ -24,10 +23,10 @@ router.post('/signin', async (req, res) => {
         if (Utils.verifyPassword(password, user.password)) {
             const userObject = {
                 id: user.id,
-                firstName: user.first_name,
-                lastName: user.last_name,
+                firstName: user.firstName,
+                lastName: user.lastName,
                 email: user.email,
-                accesslevel: user.access_level,
+                accesslevel: user.accessLevel,
                 bio: user.bio
             };
 
