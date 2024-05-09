@@ -19,6 +19,11 @@ class Utility {
     generateAccessToken(user){
         return jwt.sign({user: user}, process.env.ACCESS_TOKEN_SECRET, {expiresIn: '30min'})
     }
+
+    createUserDTO(user) {
+        const { password, ...userWithoutPassword } = user;
+        return userWithoutPassword;
+      }
 }
 
 module.exports = new Utility()

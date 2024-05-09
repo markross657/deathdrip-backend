@@ -1,16 +1,41 @@
 const express = require('express');
 const router = express.Router();
-const { Pool } = require('pg');
-const { v4: uuidv4 } = require('uuid');
 const pool = require('../dynamoDbConfig');
+require("dotenv").config();
+
+//ENDPOINTS
+
+router.get('/categories', async (req, res) => {
+  try {
+    const { rows } = await pool.query('SELECT * FROM public."ProductCategories"');
+
+    console.log(rows)
+    if (rows.length === 0) {
+      return res.status(404).json({ message: 'No categories items found' });
+    }
+
+    res.json(rows);
+  } 
+  catch (err) 
+  {
+    console.error("Error getting product categories", err);
+    res.status(500).json({ message: 'Problem getting product categories', error: err });
+  }
+})
 
 // Get all Coffee Shop Items
 router.get('/', async (req, res) => {
-    console.log('Received request for all menu items');
   try {
-    const { rows } = await pool.query('SELECT * FROM menu_items');
+    const { rows } = await pool.query('SELECT * FROM public."Products"');
+
+    if (rows.length === 0) {
+      return res.status(404).json({ message: 'No coffee shop items found' });
+    }
+
     res.json(rows);
-  } catch (err) {
+  } 
+  catch (err) 
+  {
     console.error("Error getting coffee shop items", err);
     res.status(500).json({ message: 'Problem getting coffee shop items', error: err });
   }
@@ -19,13 +44,14 @@ router.get('/', async (req, res) => {
 // Get a Single Coffee Shop Item by ID
 router.get('/:id', async (req, res) => {
   try {
-    const { rows } = await pool.query('SELECT * FROM menu_items WHERE id = $1', [req.params.id]);
+    const { rows } = await pool.query('SELECT * FROM public."Products" WHERE id = $1', [req.params.id]);
     if (rows.length === 0) {
       res.status(404).json({ message: 'Item does not exist' });
     } else {
       res.json(rows[0]);
     }
-  } catch (err) {
+  } 
+  catch (err) {
     console.error("Error getting coffee shop item", err);
     res.status(500).json({ message: 'Problem getting coffee shop item', error: err });
   }
@@ -34,11 +60,10 @@ router.get('/:id', async (req, res) => {
 // Create a new Coffee Shop Item
 router.post('/', async (req, res) => {
   const { name, description, price, category, size } = req.body;
-  const id = uuidv4(); // Generate a new UUID for the item ID
   try {
     const { rows } = await pool.query(
-      'INSERT INTO menu_items (id, name, description, price, category, size) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
-      [id, name, description, price, category, JSON.stringify(size)]
+      'INSERT INTO public."Products" (name, description, price, category, size) VALUES ($1, $2, $3, $4, $5) RETURNING *',
+      [name, description, price, category, JSON.stringify(size)]
     );
     res.status(201).json(rows[0]);
   } catch (err) {
@@ -55,7 +80,7 @@ router.put('/:id', async (req, res) => {
   const { name, description, price, category, size } = req.body;
   try {
     const { rows } = await pool.query(
-      'UPDATE menu_items SET name = $1, description = $2, price = $3, category = $4, size = $5 WHERE id = $6 RETURNING *',
+      'UPDATE public."Products" SET name = $1, description = $2, price = $3, category = $4, size = $5 WHERE id = $6 RETURNING *',
       [name, description, price, category, JSON.stringify(size), req.params.id]
     );
     if (rows.length === 0) {
@@ -75,7 +100,7 @@ router.put('/:id', async (req, res) => {
 // Delete a Coffee Shop Item by ID
 router.delete('/:id', async (req, res) => {
   try {
-    const { rowCount } = await pool.query('DELETE FROM menu_items WHERE id = $1', [req.params.id]);
+    const { rowCount } = await pool.query('DELETE FROM public."Products" WHERE id = $1', [req.params.id]);
     if (rowCount === 0) {
       res.status(404).json({ message: 'Item does not exist' });
     } else {

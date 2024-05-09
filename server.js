@@ -31,8 +31,8 @@ app.use("/auth", authRouter);
 const orderRouter = require("./routes/order");
 app.use("/order", orderRouter);
 
-const menuRouter = require("./routes/menu");
-app.use("/menu", menuRouter);
+const menuRouter = require("./routes/products");
+app.use("/products", menuRouter);
 
 // Run app (listen on port)
 app.listen(port, () => {

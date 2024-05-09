@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { Pool } = require('pg');
+const { pool } = require('pg');
 const { v4: uuidv4 } = require('uuid'); // For generating unique IDs
 const pool = require('../dynamoDbConfig');
 

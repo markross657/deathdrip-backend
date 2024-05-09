@@ -7,35 +7,10 @@ const pool = require('../dynamoDbConfig')
 
 // Get all Users
 router.get("/", async (req, res) => {
-  try {   
+  try {
     const { rows } = await pool.query('SELECT * FROM public.\"Users\"');
     res.json(rows);
-  } 
-  catch (err) {
-    console.log("Error getting users", err);
-    res.status(500).json({
-      message: "problem getting users",
-      error: err,
-    });
   }
-});
-
-// Get all Users
-router.get("/", async (req, res) => {
-  try {
-    var client = new pg.client(conString);
-    client.connect()
-    .then(() => {
-        console.log("Database Connected");
-    })
-    .catch((err) => {
-        console.log("Error connecting to database.", err);
-    });
-
-    const { rows } = await client.query('SELECT * FROM users');
-    res.json(rows);
-    
-  } 
   catch (err) {
     console.log("Error getting users", err);
     res.status(500).json({
@@ -48,11 +23,13 @@ router.get("/", async (req, res) => {
 // Get Single User by ID
 router.get("/:id", async (req, res) => {
   try {
-    const { rows } = await pool.query('SELECT * FROM users WHERE id = $1', [req.params.id]);
+    const { rows } = await pool.query('SELECT * FROM public.\"Users\" WHERE id = $1', [req.params.id]);
+    
     if (rows.length === 0) {
       res.status(404).json({ message: "user does not exist" });
     } else {
-      res.json(rows[0]);
+      const userDTO = utils.createUserDTO(rows[0]);
+      res.json(userDTO);
     }
   } catch (err) {
     console.log("Error getting user", err);
@@ -63,6 +40,8 @@ router.get("/:id", async (req, res) => {
   }
 });
 
+
+
 // Create new user
 router.post("/", async (req, res) => {
   if (!req.body) {
@@ -71,25 +50,26 @@ router.post("/", async (req, res) => {
     });
   }
 
-  const userId = uuidv4(); // Generate a unique UUID for the new user
+  const { firstName, lastName, email, bio, password } = req.body;
+  const hashedPassword = utils.hashPassword(password);
+  let userId;
   try {
-    const { firstName, lastName, email, bio, password } = req.body;
-    const hashedPassword = utils.hashPassword(password);
-    await pool.query(
-      'INSERT INTO users (id, first_name, last_name, email, bio, access_level, password) VALUES ($1, $2, $3, $4, $5, 1, $6)',
-      [userId, firstName, lastName, email, bio, hashedPassword]
+    const { rows } = await pool.query(
+      `
+        INSERT INTO public."Users" 
+        ("firstName", "lastName", "email", "bio", "accessLevel", "password") 
+        VALUES 
+        ($1, $2, $3, $4, $5, $6) 
+        RETURNING "id", "firstName", "lastName", "email", "bio", "accessLevel"
+      `,
+      [firstName, lastName, email, bio, 1, hashedPassword]
     );
-    res.status(201).json({
-      id: userId,
-      firstName,
-      lastName,
-      email,
-      bio,
-      accessLevel: 1
-    });
+
+    // Since the query is expected to insert one row, we can directly access the first element.
+    res.status(201).json(rows[0]);
   } catch (err) {
     console.log("error creating user", err);
-    if (err.code === '23505') { // PostgreSQL error code for unique violation
+    if (err.code === '23505') { 
       res.status(400).json({
         message: "email already in use",
       });
@@ -101,6 +81,7 @@ router.post("/", async (req, res) => {
     }
   }
 });
+
 
 // Update user
 router.put("/:id", async (req, res) => {

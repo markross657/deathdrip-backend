@@ -13,7 +13,7 @@ router.post('/signin', async (req, res) => {
     }
 
     try {
-        const { rows } = await pool.query('SELECT * FROM users WHERE email = $1', [email]);
+        const { rows } = await pool.query('SELECT * FROM public."Users" WHERE email = $1', [email]);
         const user = rows[0];
 
         if (!user) {
