@@ -8,8 +8,6 @@ require("dotenv").config();
 router.get('/categories', async (req, res) => {
   try {
     const { rows } = await pool.query('SELECT * FROM public."ProductCategories"');
-
-    console.log(rows)
     if (rows.length === 0) {
       return res.status(404).json({ message: 'No categories items found' });
     }
@@ -26,20 +24,44 @@ router.get('/categories', async (req, res) => {
 // Get all Coffee Shop Items
 router.get('/', async (req, res) => {
   try {
-    const { rows } = await pool.query('SELECT * FROM public."Products"');
+    // Fetch products with category information
+    const productQuery = `
+      SELECT p.id, p.name, p.description, c.id as category_id, c.name as category_name
+      FROM public."Products" p
+      JOIN public."ProductCategories" c ON p."categoryId" = c.id
+    `;
+    const { rows: products } = await pool.query(productQuery);
 
-    if (rows.length === 0) {
+    if (products.length === 0) {
       return res.status(404).json({ message: 'No coffee shop items found' });
     }
 
-    res.json(rows);
-  } 
-  catch (err) 
-  {
+    const productsWithDetails = await Promise.all(products.map(async product => {
+      const sizeQuery = 'SELECT label, price FROM public."Sizes" WHERE "productId" = $1';
+      const { rows: sizes } = await pool.query(sizeQuery, [product.id]);
+
+      return {
+        id: product.id,
+        name: product.name,
+        description: product.description,
+        category: {
+          id: product.category_id,
+          name: product.category_name
+        },
+        size: sizes.map(size => ({
+          label: size.label,
+          price: size.price
+        }))
+      };
+    }));
+
+    res.json(productsWithDetails);
+  } catch (err) {
     console.error("Error getting coffee shop items", err);
     res.status(500).json({ message: 'Problem getting coffee shop items', error: err });
   }
 });
+
 
 // Get a Single Coffee Shop Item by ID
 router.get('/:id', async (req, res) => {
@@ -59,43 +81,95 @@ router.get('/:id', async (req, res) => {
 
 // Create a new Coffee Shop Item
 router.post('/', async (req, res) => {
-  const { name, description, price, category, size } = req.body;
+  const { name, description, category, size } = req.body;
   try {
-    const { rows } = await pool.query(
-      'INSERT INTO public."Products" (name, description, price, category, size) VALUES ($1, $2, $3, $4, $5) RETURNING *',
-      [name, description, price, category, JSON.stringify(size)]
+    const productResult = await pool.query(
+      'INSERT INTO public."Products" ("name", "description", "categoryId") VALUES ($1, $2, $3) RETURNING *',
+      [name, description, category.id]
     );
-    res.status(201).json(rows[0]);
-  } catch (err) {
+    const product = productResult.rows[0];
+
+    const sizesPromises = size.map(s => {
+      return pool.query(
+        'INSERT INTO public."Sizes" ("productId", "label", "price") VALUES ($1, $2, $3) RETURNING *',
+        [product.id, s.label, s.price]
+      );
+    });
+
+    const sizesResults = await Promise.all(sizesPromises);
+    const sizes = sizesResults.map(result => result.rows[0]); 
+
+    const response = {
+      ...product,
+      sizes: sizes
+    };
+
+    res.status(201).json(response);
+  } 
+  catch (err) {
     console.error('Error creating coffee shop item', err);
     res.status(500).json({
       message: 'Problem creating coffee shop item',
-      error: err,
+      error: err
     });
   }
 });
 
-// Update a Coffee Shop Item by ID
-router.put('/:id', async (req, res) => {
-  const { name, description, price, category, size } = req.body;
+
+router.put('/:productId', async (req, res) => {
+  const { productId } = req.params;
+  const { name, description, category, size } = req.body;
+
   try {
-    const { rows } = await pool.query(
-      'UPDATE public."Products" SET name = $1, description = $2, price = $3, category = $4, size = $5 WHERE id = $6 RETURNING *',
-      [name, description, price, category, JSON.stringify(size), req.params.id]
-    );
-    if (rows.length === 0) {
-      res.status(404).json({ message: 'Item does not exist' });
-    } else {
-      res.json(rows[0]);
+    await pool.query('BEGIN');
+
+    const updateProductQuery = `
+      UPDATE public."Products"
+      SET name = $1, description = $2, "categoryId" = $3
+      WHERE id = $4
+      RETURNING *;
+    `;
+    const productResult = await pool.query(updateProductQuery, [name, description, category.id, productId]);
+    const updatedProduct = productResult.rows[0];
+
+    if (!updatedProduct) {
+      await pool.query('ROLLBACK');
+      return res.status(404).json({ message: 'Product not found' });
     }
-  } catch (err) {
-    console.error('Error updating coffee shop item', err);
-    res.status(500).json({
-      message: 'Problem updating coffee shop item',
-      error: err,
+
+    // Delete existing sizes
+    const deleteSizes = await pool.query('DELETE FROM public."Sizes" WHERE "productId" = $1', [productId]);
+    console.log(`Deleted ${deleteSizes.rowCount} sizes for product ID ${productId}`);
+    await pool.query('COMMIT');
+
+    // Insert new sizes
+    const sizesPromises = size.map(s => {
+      return pool.query('INSERT INTO public."Sizes" ("productId", "label", "price") VALUES ($1, $2, $3) RETURNING *;', [productId, s.label, s.price]);
     });
+
+    const sizesResults = await Promise.all(sizesPromises);
+    const updatedSizes = sizesResults.map(result => result.rows[0]);
+
+    await pool.query('COMMIT');
+    res.json({
+      id: updatedProduct.id,
+      name: updatedProduct.name,
+      description: updatedProduct.description,
+      category: {
+        id: category.id,
+        name: category.name
+      },
+      size: updatedSizes
+    });
+  } catch (err) {
+    console.error("Error updating product", err);
+    await pool.query('ROLLBACK');
+    res.status(500).json({ message: 'Problem updating product', error: err });
   }
 });
+
+
+
 
 // Delete a Coffee Shop Item by ID
 router.delete('/:id', async (req, res) => {
