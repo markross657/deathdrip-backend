@@ -133,10 +133,10 @@ router.post('/', async (req, res) => {
   }
 });
 
-// Update a Coffee Shop Order
 router.put('/:orderId', async (req, res) => {
   const orderId = req.params.orderId;
   const { customerId, items, total, status } = req.body;
+
   console.log("--------------------ORDER RECEIVED---------------")
   console.log("OrderId: " + orderId + "\n");
   
@@ -160,7 +160,7 @@ router.put('/:orderId', async (req, res) => {
         `;
     
         console.log(orderDetailsQuery);
-        console.log(`${orderId}, ${item.name}, ${item.size.label}, ${item.quantity}, ${item.size.price}, ${item.id}`);
+        console.log(`${orderId}, ${item.name}, ${item.size}, ${item.quantity}, ${item.price}, ${item.id}`);
         
         await pool.query(orderDetailsQuery, [orderId, item.name, item.size, item.quantity, item.price, item.id]);
       }

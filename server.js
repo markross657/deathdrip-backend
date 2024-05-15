@@ -3,7 +3,6 @@ const express = require("express");
 const cors = require("cors");
 const bodyParser = require("body-parser");
 const port = process.env.PORT || 3520;
-const pool = require('./dynamoDbConfig');
 
 // Express app setup
 const app = express();
@@ -12,16 +11,10 @@ app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 
 // Routes
-// Homepage
 app.get('/', (req, res) => {
-    res.send("This is the homepage");
+    res.send("You have found the Deathdrip Coffee Co API");
 });
 
-// Commented out so not accessible
-// const popRouter = require('./routes/populate');
-// app.use("/populate", popRouter);
-
-// Assuming you adapt the route files for PostgreSQL as well
 const userRouter = require("./routes/user");
 app.use("/user", userRouter);
 
@@ -33,6 +26,9 @@ app.use("/order", orderRouter);
 
 const menuRouter = require("./routes/products");
 app.use("/products", menuRouter);
+
+const imageRouter = require("./routes/image");
+app.use("/image", imageRouter);
 
 // Run app (listen on port)
 app.listen(port, () => {

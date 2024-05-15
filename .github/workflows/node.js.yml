@@ -26,4 +26,9 @@ jobs:
     - run: npm ci
     - run: npm run build --if-present
     - run: npm test --if-present
+    
+    - name: Create .env file
+      run: echo "$PROD_ENV_FILE_CONTENT" > .env
+      env:
+        PROD_ENV_FILE_CONTENT: ${{ secrets.PROD-ENV-FILE }}
     - run: pm2 restart DeathDripAPI
